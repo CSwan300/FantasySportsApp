@@ -9,11 +9,10 @@ import scala.util.Try
  * menu-driven analyses.
  *
  * The program follows functional programming principles by:
- * - using immutable case classes and immutable collections
- * - using pure functions for parsing and analysis
- * - isolating input and output to the application boundary
+ * -using immutable case classes and immutable collections
+ * -using pure functions for parsing and analysis
+ * -isolating input and output to the application boundary
  */
-
 object App {
 
   /**
@@ -114,7 +113,6 @@ object App {
     parts match {
       case name :: scoreStrings if name.nonEmpty && scoreStrings.length == 20 =>
         val parsedScores = scoreStrings.map(score => Try(score.toInt).toOption)
-
         if (parsedScores.forall(_.isDefined)) {
           Some(PlayerRecord(name, parsedScores.flatten.toVector))
         } else {
@@ -151,17 +149,28 @@ object App {
       }
 
   /**
-   * Returns the score for each player in a selected week.
+   * Returns the current week's score for each player.
    *
-   * The user enters weeks using 1-based numbering, but vectors use 0-based
-   * indexing, so week 1 corresponds to index 0.
+   * The coursework defines the current week as the last value in each
+   * player's list of weekly scores.
    *
    * @param db the player database
-   * @param week the chosen week number
-   * @return a map of player name to score for that week
+   * @return a map of player name to current week's score
+   */
+  def currentWeekScores(db: PlayerDatabase): Map[String, Int] =
+    db.players.view.mapValues(_.weeklyScores.last).toMap
+
+  /**
+   * Returns the scores for all players for a selected week.
+   *
+   * The user inputs weeks using 1-based numbering, so week 1 maps to index 0.
+   *
+   * @param db the player database
+   * @param week the selected week number
+   * @return a map of player name to score for the selected week
    */
   def scoresForWeek(db: PlayerDatabase, week: Int): Map[String, Int] =
-    db.players.view.mapValues(_.weeklyScores(week - 1)).toMap
+    db.players.view.mapValues(_.weeklyScores(week -1)).toMap
 
   /**
    * Returns the minimum and maximum weekly score for each player.
@@ -263,7 +272,7 @@ object App {
    * @return the padded text
    */
   def padL(text: String, width: Int = NumW): String =
-    (" " * (width - text.length.min(width))) + text.take(width)
+    (" " * (width -text.length.min(width))) + text.take(width)
 
   /**
    * Formats an integer for display.
@@ -289,7 +298,7 @@ object App {
    * @param title the banner title
    */
   def banner(title: String): Unit = {
-    val line = "─" * (ColW + NumW * 2 + 4)
+    val line = "-" * (ColW + NumW * 2 + 4)
     println()
     println(line)
     println(s"  $title")
@@ -301,17 +310,17 @@ object App {
    */
   def printMenu(): Unit = {
     println()
-    println("╔══════════════════════════════════════════════╗")
-    println("║           FANTASY SPORTS ANALYSER           ║")
-    println("╠══════════════════════════════════════════════╣")
-    println("║  1. Scores for a chosen week                ║")
-    println("║  2. Highest and lowest per player           ║")
-    println("║  3. Players with total points > 500         ║")
-    println("║  4. Compare two players' averages           ║")
-    println("║  5. Team analysis up to a chosen week       ║")
-    println("║  0. Quit                                    ║")
-    println("╚══════════════════════════════════════════════╝")
-    print("  Choice: ")
+    println("          FANTASY SPORTS ANALYSER           ")
+    println("--------------------------------------------")
+    println(" 1. Current week scores                     ")
+    println(" 2. Highest and lowest per player           ")
+    println(" 3. Players with total points > 500         ")
+    println(" 4. Compare two players' averages           ")
+    println(" 5. Team analysis up to a chosen week       ")
+    println(" 6. Scores for a selected week              ")
+    println(" 0. Quit                                    ")
+    println("")
+    print("Choice: ")
   }
 
   /**
@@ -326,7 +335,7 @@ object App {
     Try(StdIn.readLine().trim.toInt).toOption match {
       case Some(value) if value >= 1 && value <= maxWeek => value
       case _ =>
-        println(s"  [!] Please enter a whole number between 1 and $maxWeek")
+        println(s"  [Danger] Please enter a whole number between 1 and $maxWeek")
         readWeekNumber(maxWeek)
     }
   }
@@ -335,9 +344,9 @@ object App {
    * Reads a player name from user input using flexible matching.
    *
    * The user does not need to type the exact full name. Matching is:
-   * - case-insensitive
-   * - tolerant of spaces and underscores
-   * - based on partial text
+   * -case-insensitive
+   * -tolerant of spaces and underscores
+   * -based on partial text
    *
    * If there is exactly one match, it is selected automatically.
    * If there are several matches, suggestions are shown.
@@ -353,7 +362,7 @@ object App {
 
     matches match {
       case Vector() =>
-        println("  [!] No matching player found. Try again")
+        println("  [Danger] No matching player found. Try again")
         readPlayer(prompt, db)
 
       case Vector(singleMatch) =>
@@ -361,7 +370,7 @@ object App {
         singleMatch
 
       case many =>
-        println(s"  [!] Multiple matches found: ${many.mkString(", ")}")
+        println(s"  [Danger] Multiple matches found: ${many.mkString(", ")}")
         println("  Please type a bit more of the name")
         readPlayer(prompt, db)
     }
@@ -389,7 +398,7 @@ object App {
 
         matches match {
           case Vector() =>
-            println(s"  [!] No match for '$rawInput' - ignored")
+            println(s"  [Danger] No match for '$rawInput' -ignored")
             None
 
           case Vector(singleMatch) =>
@@ -397,7 +406,7 @@ object App {
             Some(singleMatch)
 
           case many =>
-            println(s"  [!] '$rawInput' matches multiple players: ${many.mkString(", ")}")
+            println(s"  [Danger] '$rawInput' matches multiple players: ${many.mkString(", ")}")
             println("  Please enter that player more specifically next time")
             None
         }
@@ -405,18 +414,38 @@ object App {
   }
 
   /**
-   * Displays the score for each player in a chosen week.
+   * Frontend handler for analysis 1.
+   *
+   * Displays the current week's score for each player.
+   *
+   * @param backend the pure backend function
+   * @param db the player database
+   */
+  def handleCurrentWeek(
+                         backend: PlayerDatabase => Map[String, Int]
+                       )(db: PlayerDatabase): Unit = {
+    banner("Current Week Scores")
+    println(s"  ${padR("Player")}${padL("Points")}")
+    println("  " + "-" * (ColW + NumW))
+
+    backend(db).toSeq.sortBy(-_._2).foreach { case (name, points) =>
+      println(s"  ${padR(name)}${numFmt(points)}")
+    }
+  }
+
+  /**
+   * Frontend handler for the extra selected-week view.
    *
    * @param db the player database
    */
-  def handleChosenWeek(db: PlayerDatabase): Unit = {
-    banner("Scores For A Chosen Week")
+  def handleSelectedWeek(db: PlayerDatabase): Unit = {
+    banner("Scores For A Selected Week")
     val week = readWeekNumber(db.maxWeeks)
 
     println()
     println(s"  Scores for week $week:")
     println(s"  ${padR("Player")}${padL("Points")}")
-    println("  " + "─" * (ColW + NumW))
+    println("  " + "-" * (ColW + NumW))
 
     scoresForWeek(db, week).toSeq.sortBy(-_._2).foreach { case (name, points) =>
       println(s"  ${padR(name)}${numFmt(points)}")
@@ -424,35 +453,40 @@ object App {
   }
 
   /**
-   * Displays the lowest and highest score for each player.
+   * Frontend handler for analysis 2.
    *
+   * @param backend the pure backend function
    * @param db the player database
    */
-  def handleMinMax(db: PlayerDatabase): Unit = {
+  def handleMinMax(
+                    backend: PlayerDatabase => Map[String, (Int, Int)]
+                  )(db: PlayerDatabase): Unit = {
     banner("Highest And Lowest Points Per Player")
     println(s"  ${padR("Player")}${padL("Lowest")}${padL("Highest")}")
-    println("  " + "─" * (ColW + NumW * 2))
+    println("  " + "-" * (ColW + NumW * 2))
 
-    minMaxScores(db).toSeq.sortBy(_._1).foreach { case (name, (low, high)) =>
+    backend(db).toSeq.sortBy(_._1).foreach { case (name, (low, high)) =>
       println(s"  ${padR(name)}${numFmt(low)}${numFmt(high)}")
     }
   }
 
   /**
-   * Displays players whose total points exceed 500.
+   * Frontend handler for analysis 3.
    *
+   * @param backend the pure backend function
    * @param db the player database
    */
-  def handleHighTotals(db: PlayerDatabase): Unit = {
+  def handleHighTotals(
+                        backend: PlayerDatabase => Map[String, Int]
+                      )(db: PlayerDatabase): Unit = {
     banner("Players With Total Points Greater Than 500")
-    val results = highTotalPlayers(db).toSeq.sortBy(-_._2)
+    val results = backend(db).toSeq.sortBy(-_._2)
 
     if (results.isEmpty) {
       println("  No players exceed 500 total points")
     } else {
       println(s"  ${padR("Player")}${padL("Total")}")
-      println("  " + "─" * (ColW + NumW))
-
+      println("  " + "-" * (ColW + NumW))
       results.foreach { case (name, total) =>
         println(s"  ${padR(name)}${numFmt(total)}")
       }
@@ -460,7 +494,7 @@ object App {
   }
 
   /**
-   * Compares the average score of two selected players.
+   * Frontend handler for analysis 4.
    *
    * @param db the player database
    */
@@ -481,7 +515,7 @@ object App {
     println(s"  ${padR(player2)} avg = ${numFmt(avg2)}")
     println()
 
-    val difference = math.abs(avg1 - avg2)
+    val difference = math.abs(avg1 -avg2)
     val (winner, loser) =
       if (avg1 >= avg2) (player1, player2) else (player2, player1)
 
@@ -489,12 +523,12 @@ object App {
   }
 
   /**
-   * Performs a team analysis up to a chosen week.
+   * Frontend handler for analysis 5.
    *
    * @param db the player database
    */
   def handleTeamAnalysis(db: PlayerDatabase): Unit = {
-    banner("Team Analysis - Cumulative Points Up To A Chosen Week")
+    banner("Team Analysis -Cumulative Points Up To A Chosen Week")
 
     val names = readPlayerNames(db)
     val week = readWeekNumber(db.maxWeeks)
@@ -509,13 +543,13 @@ object App {
     } else {
       println(s"\n  Cumulative points up to and including week $week:")
       println(s"  ${padR("Player")}${padL("Total")}")
-      println("  " + "─" * (ColW + NumW))
+      println("  " + "-" * (ColW + NumW))
 
       result.perPlayerTotals.toSeq.sortBy(-_._2).foreach { case (name, total) =>
         println(s"  ${padR(name)}${numFmt(total)}")
       }
 
-      println("  " + "─" * (ColW + NumW))
+      println("  " + "-" * (ColW + NumW))
       println(s"  ${padR("TEAM TOTAL")}${numFmt(result.teamTotal)}")
     }
   }
@@ -523,22 +557,26 @@ object App {
   /**
    * Handles one menu choice.
    *
+   * This composes the frontend handlers with their backend functions,
+   * keeping the data-processing functions pure and the user interaction separate.
+   *
    * @param choice the selected menu option
    * @param db the player database
    * @return true if the application should continue
    */
   def handleChoice(choice: String, db: PlayerDatabase): Boolean =
     choice match {
-      case "1" => handleChosenWeek(db); true
-      case "2" => handleMinMax(db); true
-      case "3" => handleHighTotals(db); true
+      case "1" => handleCurrentWeek(currentWeekScores)(db); true
+      case "2" => handleMinMax(minMaxScores)(db); true
+      case "3" => handleHighTotals(db => highTotalPlayers(db, 500))(db); true
       case "4" => handleAverageCompare(db); true
       case "5" => handleTeamAnalysis(db); true
+      case "6" => handleSelectedWeek(db); true
       case "0" =>
-        println("\n Quit")
+        println("\n  Quitting")
         false
       case _ =>
-        println(s"\n  [!] '$choice' is not a valid option. Please enter 0-5")
+        println(s"\n  [!] '$choice' is not a valid option. Please enter 0-6")
         true
     }
 
