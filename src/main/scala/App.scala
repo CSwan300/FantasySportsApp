@@ -10,7 +10,7 @@ import scala.util.Try
  *
  * The program follows functional programming principles by:
  * -using immutable case classes and immutable collections
- * -using pure functions for parsing and analysis
+ * -using  functions for parsing and analysis
  * -isolating input and output to the application boundary
  */
 object App {
@@ -349,7 +349,7 @@ object App {
    * -based on partial text
    *
    * If there is exactly one match, it is selected automatically.
-   * If there are several matches, suggestions are shown.
+   * If there are several matches, suggestions are shown and the user is told to try again.
    *
    * @param prompt the input prompt
    * @param db the player database
@@ -418,7 +418,7 @@ object App {
    *
    * Displays the current week's score for each player.
    *
-   * @param backend the pure backend function
+   * @param backend the  backend function
    * @param db the player database
    */
   def handleCurrentWeek(
@@ -455,7 +455,7 @@ object App {
   /**
    * Frontend handler for analysis 2.
    *
-   * @param backend the pure backend function
+   * @param backend the  backend function
    * @param db the player database
    */
   def handleMinMax(
@@ -473,7 +473,7 @@ object App {
   /**
    * Frontend handler for analysis 3.
    *
-   * @param backend the pure backend function
+   * @param backend the  backend function
    * @param db the player database
    */
   def handleHighTotals(
@@ -558,7 +558,7 @@ object App {
    * Handles one menu choice.
    *
    * This composes the frontend handlers with their backend functions,
-   * keeping the data-processing functions pure and the user interaction separate.
+   * keeping the data-processing functions and the user interaction separate.
    *
    * @param choice the selected menu option
    * @param db the player database
@@ -573,7 +573,7 @@ object App {
       case "5" => handleTeamAnalysis(db); true
       case "6" => handleSelectedWeek(db); true
       case "0" =>
-        println("\n  Quitting")
+        println("\nQuitting")
         false
       case _ =>
         println(s"\n  [!] '$choice' is not a valid option. Please enter 0-6")
