@@ -3,7 +3,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class AppSpec extends AnyFlatSpec with Matchers with OptionValues {
-// uses private data just for the tests
+  // uses private data just for the tests
   private val alphaScores =
     Vector(10, 20, 30, 40, 50, 10, 20, 30, 40, 50, 10, 20, 30, 40, 50, 10, 20, 30, 40, 50)
   private val betaScores = Vector.fill(20)(5)
@@ -15,7 +15,7 @@ class AppSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   private val db = App.PlayerDatabase(Map(
     "Alpha" -> alphaRecord,
-    "Beta"  -> betaRecord,
+    "Beta" -> betaRecord,
     "Gamma" -> gammaRecord
   ))
 
@@ -125,15 +125,15 @@ class AppSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   "minMaxScores" should "return the correct min and max for Alpha" in {
-    App.minMaxScores(db)("Alpha") shouldBe (10, 50)
+    App.minMaxScores(db)("Alpha") shouldBe(10, 50)
   }
 
   it should "return the correct min and max for Beta" in {
-    App.minMaxScores(db)("Beta") shouldBe (5, 5)
+    App.minMaxScores(db)("Beta") shouldBe(5, 5)
   }
 
   it should "return the correct min and max for Gamma" in {
-    App.minMaxScores(db)("Gamma") shouldBe (1, 200)
+    App.minMaxScores(db)("Gamma") shouldBe(1, 200)
   }
 
   it should "return one entry per player" in {
@@ -221,7 +221,7 @@ class AppSpec extends AnyFlatSpec with Matchers with OptionValues {
 
     result.perPlayerTotals shouldBe Map.empty
     result.teamTotal shouldBe 0
-    result.missingPlayers should contain allOf ("X", "Y")
+    result.missingPlayers should contain allOf("X", "Y")
   }
 
   it should "handle an empty name list" in {
@@ -268,11 +268,11 @@ class AppSpec extends AnyFlatSpec with Matchers with OptionValues {
     val multiDb = App.PlayerDatabase(Map(
       "Alpha_One" -> App.PlayerRecord("Alpha_One", Vector.fill(20)(1)),
       "Alpha_Two" -> App.PlayerRecord("Alpha_Two", Vector.fill(20)(2)),
-      "Beta"      -> App.PlayerRecord("Beta", Vector.fill(20)(3))
+      "Beta" -> App.PlayerRecord("Beta", Vector.fill(20)(3))
     ))
 
     val result = App.findMatchingPlayers("alpha", multiDb)
-    result should contain allOf ("Alpha_One", "Alpha_Two")
+    result should contain allOf("Alpha_One", "Alpha_Two")
     result should not contain "Beta"
   }
 

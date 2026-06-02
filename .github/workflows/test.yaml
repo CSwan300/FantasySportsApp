@@ -2,16 +2,26 @@ name: Run Tests
 
 on:
   push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
-
 jobs:
   test:
     name: Scala Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres-db:
+        image: postgres:latest
+        env:
+          POSTGRES_PASSWORD: mysecretpassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -27,8 +37,17 @@ jobs:
       - name: Set up sbt
         uses: sbt/setup-sbt@v1
 
+      - name: Initialize Database Schema
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          PGPASSWORD=mysecretpassword psql -h localhost -U postgres -f init.sql
+
       - name: Run tests
         run: sbt test
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/fantasy_db
+          DB_USER: postgres
+          DB_PASSWORD: mysecretpassword
 
       - name: Upload test reports
         if: always()

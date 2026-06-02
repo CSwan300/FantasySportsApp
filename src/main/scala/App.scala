@@ -1,10 +1,13 @@
+import java.sql.DriverManager
 import scala.io.{Source, StdIn}
 import scala.util.Try
 
 /**
  * Fantasy Sports Analyser
- * Reads CSV data into immutable structures and provides menu-driven analysis.
+ * Reads CSV data or PostgreSQL tables into immutable structures
+ * and provides menu-driven analysis.
  */
+
 object App {
 
   // Stores one players name and weekly scores
@@ -29,8 +32,45 @@ object App {
   private val ColW = 26
   private val NumW = 10
 
-  // Loaded player data used by the application
-  val database: PlayerDatabase = loadData(dataPath)
+  // Dual-source data loader wrapper with a safe fallback mechanism
+  val database: PlayerDatabase = loadDataFromPostgres() match {
+    case scala.util.Success(db) if !db.isEmpty =>
+      println("\n[Info] Successfully connected and loaded data from PostgreSQL database.")
+      db
+    case _ =>
+      println("\n[Warning] PostgreSQL unavailable or empty. Falling back to local text file...")
+      loadData(dataPath)
+  }
+
+  /**
+   * Attempts to load dataset directly out of a PostgreSQL database instance
+   */
+  private def loadDataFromPostgres(): Try[PlayerDatabase] = Try {
+    // Docker related networking configuration properties 
+    val url = "jdbc:postgresql://postgres-db:5432/fantasy_db"
+    val username = "postgres"
+    val password = "mysecretpassword"
+
+    val connection = DriverManager.getConnection(url, username, password)
+    try {
+      val statement = connection.createStatement()
+      val resultSet = statement.executeQuery("SELECT name, weekly_scores FROM players")
+
+      val records = Iterator.continually(resultSet.next())
+        .takeWhile(identity)
+        .map { _ =>
+          val name = resultSet.getString("name")
+          // Retrieve the raw SQL array and safely cast it into a boxed Integer array
+          val arrayObj = resultSet.getArray("weekly_scores").getArray.asInstanceOf[Array[java.lang.Integer]]
+          val scores = arrayObj.map(_.toInt).toVector
+          PlayerRecord(name, scores)
+        }.toVector
+
+      PlayerDatabase(records.map(r => r.name -> r).toMap)
+    } finally {
+      connection.close()
+    }
+  }
 
   // Converts a CSV line into a PlayerRecord if it contains exactly 20 scores
   def parseLine(line: String): Option[PlayerRecord] = {
@@ -44,7 +84,7 @@ object App {
     }
   }
 
-  // Reads the data file and builds the player database
+  // Reads the data file and builds the player database (Original fallback mechanism)
   def loadData(path: String): PlayerDatabase =
     Try(Source.fromFile(path)).toOption.map { source =>
       try {
@@ -209,8 +249,7 @@ object App {
   }
 
   def main(args: Array[String]): Unit = { if (!database.isEmpty) run(database) }
-  
-  // verify if it is tail recursive and prevents a stack overflow error (LLMs replaced it anyway im not sad at all)
+
   @annotation.tailrec
   def run(db: PlayerDatabase): Unit = {
     println("\n1. Current | 2. MinMax | 3. High Totals | 4. Compare | 5. Team | 6. Week | 0. Quit")

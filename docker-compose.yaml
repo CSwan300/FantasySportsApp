@@ -1,0 +1,27 @@
+
+services:
+  postgres-db:
+    image: postgres:latest
+    container_name: postgres-db
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      # Mounts our initialization script into the postgres startup folder
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scala-app:
+    build: .
+    container_name: scala-app
+    # Keeps the interactive CLI menu responsive to keyboard input inside Docker
+    stdin_open: true
+    tty: true
+    depends_on:
+      postgres-db:
+        condition: service_healthy

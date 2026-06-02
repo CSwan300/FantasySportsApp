@@ -7,6 +7,7 @@ lazy val root = (project in file("."))
     name := "Prog3cw2",
 
     libraryDependencies ++= Seq(
+      "org.postgresql" % "postgresql" % "42.7.3",
       "org.scalatest" %% "scalatest" % "3.2.20" % Test
     )
   )
