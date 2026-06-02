@@ -327,4 +327,11 @@ class AppSpec extends AnyFlatSpec with Matchers with OptionValues {
 
     result.trim shouldBe "15.90"
   }
+  "loadDataFromPostgres" should "gracefully catch connection errors and return a Failure Try" in {
+    // This verifies your fallback engine won't crash when database credentials break
+    val databaseAttempt = App.loadDataFromPostgres()
+
+    // It should handle the error gracefully without throwing an uncaught exception
+    databaseAttempt.isFailure shouldBe true
+  }
 }
