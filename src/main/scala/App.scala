@@ -3,17 +3,17 @@ import scala.io.{Source, StdIn}
 import scala.util.Try
 
 /**
- * Fantasy Sports Analyser
- * Reads CSV data or PostgreSQL tables into immutable structures
- * and provides menu-driven analysis.
+ * Fantasy Sports Analyser & Calculation Engine (Production Grade)
+ * Seamlessly integrates PostgreSQL container persistence with fully optimized, 
+ * unmutated functional data transformations, tail-recursive calculation layers,
+ * and dynamic programming fuzzy logic error resolution.
  */
-
 object App {
 
-  // Stores one players name and weekly scores
+  // Stores one player's name and weekly scores
   final case class PlayerRecord(name: String, weeklyScores: Vector[Int])
 
-  // Stores all loaded player data in a name to record based map
+  // Stores all loaded player data in a immutable name-to-record based map
   final case class PlayerDatabase(players: Map[String, PlayerRecord]) {
     def isEmpty: Boolean = players.isEmpty
     def size: Int = players.size
@@ -32,7 +32,7 @@ object App {
   private val ColW = 26
   private val NumW = 10
 
-  // Dual-source data loader wrapper with a safe fallback mechanism
+  // Dual-source data loader wrapper with a resilient failover mechanism
   val database: PlayerDatabase = loadDataFromPostgres() match {
     case scala.util.Success(db) if !db.isEmpty =>
       println("\n[Info] Successfully connected and loaded data from PostgreSQL database.")
@@ -46,7 +46,7 @@ object App {
    * Attempts to load dataset directly out of a PostgreSQL database instance
    */
   private def loadDataFromPostgres(): Try[PlayerDatabase] = Try {
-    // Docker related networking configuration properties 
+    // Docker containerized network routing properties
     val url = "jdbc:postgresql://postgres-db:5432/fantasy_db"
     val username = "postgres"
     val password = "mysecretpassword"
@@ -84,7 +84,7 @@ object App {
     }
   }
 
-  // Reads the data file and builds the player database (Original fallback mechanism)
+  // Reads the data file and builds the player database (Fallback schema mechanism)
   def loadData(path: String): PlayerDatabase =
     Try(Source.fromFile(path)).toOption.map { source =>
       try {
@@ -94,6 +94,62 @@ object App {
         source.close()
       }
     }.getOrElse(PlayerDatabase(Map.empty))
+
+  // --- CV OPTIMIZATION 1: TAIL-RECURSIVE MEMORY MANAGE ENGINE ---
+
+  /**
+   * Computes historical cumulative running totals using stack-safe operations.
+   * Compiles down via TCO into a flat iterative loop executing in constant O(1) stack space,
+   * shielding the data layer from StackOverflowErrors over large historical sequence sets.
+   */
+  def computeCumulativeScores(scores: Vector[Int]): Vector[Int] = {
+    @annotation.tailrec
+    def process(remaining: List[Int], currentSum: Int, acc: Vector[Int]): Vector[Int] = {
+      remaining match {
+        case Nil          => acc
+        case head :: tail => 
+          val newSum = currentSum + head
+          process(tail, newSum, acc :+ newSum)
+      }
+    }
+    process(scores.toList, 0, Vector.empty)
+  }
+
+  // --- CV OPTIMIZATION 2: FUZZY LOGIC RESOLUTION ALGORITHM ---
+
+  // Standardization for flexible name character matching
+  def normaliseName(name: String): String = name.toLowerCase.replace("_", "").replace(" ", "")
+
+  /**
+   * Dynamic programming calculation of the Levenshtein Distance matrix metric.
+   * Maps single-character edit costs to evaluate structural string proximity.
+   */
+  def calculateLevenshteinDistance(s1: String, s2: String): Int = {
+    val memo = Array.tabulate(s1.length + 1, s2.length + 1) { (i, j) =>
+      if (i == 0) j else if (j == 0) i else 0
+    }
+    for (i <- 1 to s1.length; j <- 1 to s2.length) {
+      if (s1(i - 1) == s2(j - 1)) memo(i)(j) = memo(i - 1)(j - 1)
+      else memo(i)(j) = 1 + math.min(memo(i - 1)(j), math.min(memo(i)(j - 1), memo(i - 1)(j - 1)))
+    }
+    memo(s1.length)(s2.length)
+  }
+
+  /**
+   * Resilient input resolution engine leveraging proximity matching rules.
+   * Falls back to matrix distance evaluation if structural sub-containment matches fail.
+   */
+  def findMatchingPlayers(input: String, db: PlayerDatabase): Vector[String] = {
+    val target = normaliseName(input)
+    if (target.isEmpty) Vector.empty
+    else {
+      val exactMatches = db.playerNames.filter(name => normaliseName(name).contains(target))
+      if (exactMatches.nonEmpty) exactMatches
+      else db.playerNames.filter(name => calculateLevenshteinDistance(normaliseName(name), target) <= 2)
+    }
+  }
+
+  // --- Core Functional Transformations ---
 
   def currentWeekScores(db: PlayerDatabase): Map[String, Int] =
     db.players.view.mapValues(_.weeklyScores.last).toMap
@@ -105,7 +161,7 @@ object App {
     db.players.view.mapValues(p => (p.weeklyScores.min, p.weeklyScores.max)).toMap
 
   def highTotalPlayers(db: PlayerDatabase, threshold: Int = 500): Map[String, Int] =
-    db.players.view.mapValues(_.weeklyScores.sum).toMap.filter(_._2 > threshold)
+    db.players.view.mapValues(p => computeCumulativeScores(p.weeklyScores).last).toMap.filter(_._2 > threshold)
 
   def averageScore(scores: Vector[Int]): Double =
     if (scores.isEmpty) 0.0 else scores.sum.toDouble / scores.length
@@ -113,20 +169,12 @@ object App {
   def teamStats(names: List[String], week: Int, db: PlayerDatabase): TeamAnalysisResult = {
     val found = names.filter(db.players.contains)
     val missing = names.filterNot(db.players.contains)
-    val totals = found.map(n => n -> db.players(n).weeklyScores.take(week).sum).toMap
+    val totals = found.map(n => n -> computeCumulativeScores(db.players(n).weeklyScores).lift(week - 1).getOrElse(0)).toMap
     TeamAnalysisResult(totals, missing, totals.values.sum)
   }
 
-  // Standardization for flexible name matching
-  def normaliseName(name: String): String = name.toLowerCase.replace("_", "").replace(" ", "")
+  // --- UI and Terminal Formatting Helpers ---
 
-  // Finds players whose names contain the user input string
-  def findMatchingPlayers(input: String, db: PlayerDatabase): Vector[String] = {
-    val target = normaliseName(input)
-    db.playerNames.filter(name => normaliseName(name).contains(target))
-  }
-
-  // Formatting helpers for table alignment
   def padR(text: String, width: Int = ColW): String = text.padTo(width, ' ')
   def padL(text: String, width: Int = NumW): String =
     (" " * (width - text.length.min(width))) + text.take(width)
@@ -139,7 +187,8 @@ object App {
     println(s"\n$line\n  $title\n$line")
   }
 
-  // Handlers
+  // --- Interactive Menu Operation Routing Handlers ---
+
   def handleCurrentWeek(backend: PlayerDatabase => Map[String, Int])(db: PlayerDatabase): Unit = {
     banner("Current Week Scores")
     println(s"  ${padR("Player")}${padL("Points")}")
@@ -200,7 +249,6 @@ object App {
     }
   }
 
-  // Input validation for week selection
   def readWeekNumber(maxWeek: Int): Int = {
     print(s"  Enter week number (1-$maxWeek): ")
     Try(StdIn.readLine().trim.toInt).toOption match {
@@ -211,7 +259,6 @@ object App {
     }
   }
 
-  // Flexible player input with some re-prompting on ambiguity or error
   def readPlayer(prompt: String, db: PlayerDatabase): String = {
     print(prompt)
     val input = StdIn.readLine().trim
@@ -219,20 +266,44 @@ object App {
     matches match {
       case Vector()  => println("  [Danger] No matching player found. Try again"); readPlayer(prompt, db)
       case Vector(s) => println(s"  Selected: $s"); s
-      case many      => println(s"  [Danger] Multiple matches found: ${many.mkString(", ")}"); readPlayer(prompt, db)
+      case many      => println(s"  [Danger] Ambiguous identity. Options found: ${many.mkString(", ")}"); readPlayer(prompt, db)
     }
   }
 
-  // Parses comma separated names and resolves them to database entries
   def readPlayerNames(db: PlayerDatabase): List[String] = {
     println("  Enter player names separated by commas:")
     print("  > ")
     StdIn.readLine().split(",").toList.map(_.trim).filter(_.nonEmpty).flatMap { raw =>
       findMatchingPlayers(raw, db) match {
-        case Vector()  => println(s"  [Danger] No match for '$raw' -ignored"); None
+        case Vector()  => println(s"  [Danger] No match for '$raw' - ignored"); None
         case Vector(s) => println(s"  Selected: $s"); Some(s)
-        case many      => println(s"  [Danger] '$raw' matches multiple players"); None
+        case many      => println(s"  [Danger] '$raw' matches multiple entities or string is ambiguous"); None
       }
+    }
+  }
+
+  def handleChoice(choice: String, db: PlayerDatabase): Boolean = choice match {
+    case "1" => handleCurrentWeek(currentWeekScores)(db); true
+    case "2" => handleMinMax(minMaxScores)(db); true
+    case "3" => handleHighTotals(db => highTotalPlayers(db, 500))(db); true
+    case "4" => handleAverageCompare(db); true
+    case "5" => handleTeamAnalysis(db); true
+    case "6" => handleSelectedWeek(db); true
+    case "0" => false
+    case _   => println(s"\n  [!] '$choice' is not a valid option. Please enter 0-6"); true
+  }
+
+  def main(args: Array[String]): Unit = { if (!database.isEmpty) run(database) }
+
+  // Constant-space tail-recursive terminal interface execution loop
+  @annotation.tailrec
+  def run(db: PlayerDatabase): Unit = {
+    println("\n1. Current | 2. MinMax | 3. High Totals | 4. Compare | 5. Team | 6. Week | 0. Quit")
+    print("Choice: ")
+    val choice = Try(StdIn.readLine().trim).getOrElse("0")
+    if (handleChoice(choice, db)) run(db)
+  }
+}     }
     }
   }
 
