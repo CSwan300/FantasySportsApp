@@ -1,40 +1,52 @@
 # Fantasy Sports Analyser
 
-A Scala console application that reads player scores from a comma-separated text file and runs several analyses from a menu. The program uses a custom immutable data structure and functional programming techniques to process the data.
+A robust Scala 3 backend data-processing engine designed to ingest, parse, and analyze multi-week player performance metrics. The application uses pure functional programming paradigms, immutable data structures, and monadic exception handling to deliver memory-safe, predictable analytical execution. It supports local development, containerized orchestration with Docker, and automated integration validation through GitHub Actions.
 
 ## Features
 
-- Loads player data from `src/data/data.txt`.
-- Displays the current week's scores for each player.
-- Shows the highest and lowest scores per player.
-- Lists players with total points above 500.
-- Compares two players by average score.
-- Calculates team totals up to a chosen week.
-- Accepts flexible player-name input, including partial names and different capitalisation.
+- **Functional ingestion pipeline:** Parses multi-week structured metrics defensively using Scala `Try` and `Option` monads.
+- **Relational data layer:** Integrates local persistence through a PostgreSQL database initialized with repeatable schema definitions.
+- **Fault-tolerant string normalization:** Implements a flexible command-line parsing algorithm that handles case insensitivity, character substitutions, and partial string matching.
+- **Advanced performance analytics:**
+  - Evaluates current-week performance vectors.
+  - Computes historical bounds, including peak and trough metrics for each player.
+  - Applies volumetric filtering for aggregated scoring thresholds above 500 points.
+  - Performs comparative statistical evaluation using rolling mean calculations.
+  - Supports time-series team accumulation analysis up to a specified target week.
 
-## Project structure
+## Architecture and Project Structure
 
 ```text
-Prog3cw2-build/
+Prog3cw2/
+├── .github/
+│   └── workflows/
+│       └── test.yml             # GitHub Actions CI/CD pipeline
 ├── src/
 │   ├── data/
-│   │   └── data.txt
-│   └── main/
+│   │   └── data.txt             # Flat-file backup data resource
+│   ├── main/
+│   │   └── scala/
+│   │       └── App.scala        # Main application entry point
+│   └── test/
 │       └── scala/
-│           └── App.scala
-├── build.sbt
+│           └── AppSpec.scala    # ScalaTest suite
+├── init.sql                     # PostgreSQL schema setup script
+├── docker-compose.yml           # Containerized ecosystem orchestration
+├── Dockerfile                   # Multi-stage container build instructions
+├── build.sbt                    # sbt build configuration
 └── README.md
 ```
 
-## Requirements
+## Prerequisites
 
-- Scala 3
-- sbt
-- A terminal or IDE such as IntelliJ IDEA
+- Scala 3.3.x
+- sbt 1.10.x or higher
+- Java Development Kit (JDK) 17 or 21
+- Docker Desktop, required for containerized runtime execution
 
-## Data file format
+## Data File Specification
 
-Each line in `src/data/data.txt` must contain:
+The core application dataset is seeded from structured tabular records stored in `src/data/data.txt`. Each line must follow this format:
 
 ```text
 PlayerName,score1,score2,score3,...,score20
@@ -46,110 +58,77 @@ Example:
 Robert_Burns,18,24,28,20,32,38,50,26,34,42,55,28,36,40,34,50,52,46,42,72
 ```
 
-- The player name is the first value on the line.
-- The next 20 values are weekly scores.
-- The final score is the current week's score.
-- Each line must contain exactly 20 numeric values after the name.
+- Column index `0` stores the unique player identifier.
+- The remaining columns must contain exactly 20 numeric weekly performance values.
 
-## How to run
+## Deployment and Execution Guide
 
-### Using sbt in a terminal
+### Method 1: Local Terminal Runtime
 
-1. Open a terminal in the project root.
-2. Run the application:
+To compile and run the console application directly on the host machine:
+
+1. Open a terminal in the project root directory.
+2. Run the application with sbt:
 
 ```bash
 sbt run
 ```
 
-3. If sbt asks which main class to run, select:
+### Method 2: Docker Compose Runtime
 
-```text
-App
+The container stack provisions an isolated environment containing both the Scala application and a PostgreSQL database instance.
+
+1. Ensure Docker Desktop is running.
+2. Build and launch the full environment:
+
+```bash
+docker compose up --build
 ```
 
-### Using IntelliJ IDEA
+This setup mounts the required volumes, initializes the database schema from `init.sql`, applies environment configuration, and exposes the interactive CLI through the active terminal session.
 
-1. Open the project in IntelliJ IDEA.
-2. Make sure `src/data/data.txt` exists in the project.
-3. Open `App.scala`.
-4. Run the `main` method or the `App` object.
+### Method 3: IntelliJ IDEA
 
-## Important note about the data path
+1. Import the repository root as an sbt project.
+2. Confirm the project SDK is set to JDK 17 or JDK 21.
+3. Open `src/main/scala/App.scala`, then run the `App` object.
 
-The program expects the file at:
+## Continuous Integration Configuration
 
-```text
-src/data/data.txt
-```
+The repository includes an automated GitHub Actions workflow defined in `.github/workflows/test.yml`.
 
-If you move the file, update the `dataPath` value in the code so it points to the correct location.
+On every push and pull request targeting the `master` branch, the workflow provisions a PostgreSQL service container, resolves dependencies through sbt, executes the ScalaTest and JUnit suites, and uploads execution logs as workflow artifacts.
 
-## Menu options
+## Fault-Tolerant CLI Input Engine
 
-When the program starts, it shows this menu:
+The application includes a custom normalization layer that improves record matching during interactive CLI input.
 
-- `1` Current week scores.
-- `2` Highest and lowest per player.
-- `3` Players with total points > 500.
-- `4` Compare two players' averages.
-- `5` Team analysis up to a chosen week.
-- `0` Quit.
+It supports:
 
-## Flexible name input
-
-When the program asks for a player name, you do not need to type it exactly as stored in the file.
-
-The program will:
-- ignore capitalisation,
-- ignore spaces and underscores,
-- match partial names,
-- auto-select a player if only one match is found.
+- Case normalization for lowercase and mixed-case queries.
+- Character sanitization across underscores and spaces.
+- Partial trailing-pattern matching for incomplete inputs.
 
 Examples:
-- `sean` matches `Sean_Connery`
-- `alexander` may match multiple players
-- `graham bell` matches `Alexander_Graham_Bell`
 
-If multiple matches are found, the program asks you for a specific name.
+- Entering `sean` resolves to `Sean_Connery`.
+- Entering `graham bell` resolves to `Alexander_Graham_Bell`.
+- If multiple records match the same pattern, the CLI prompts for more specific input.
 
 ## Troubleshooting
 
-### "Could not read file"
+### Persistence Failure
 
-This usually means one of these is wrong:
+- Ensure the Docker containers have fully started before running database-dependent operations.
+- Verify that the `DB_URL` value matches the active local connection configuration.
 
-- The file is not in `src/data/data.txt`.
-- The working directory is not the project root.
-- The file name is spelled incorrectly.
+### Application Initialization Crash
 
-### Program exits immediately
-
-This usually means the file could not be loaded, so the database is empty.
-
-### Input not recognised
-
-For player names, try entering part of the name instead of the full exact version.
-
-## Example usage
-
-```text
-Loading data from 'src/data/data.txt' ...
-Successfully loaded 20 players.
-
-╔══════════════════════════════════════════════╗
-║           FANTASY SPORTS ANALYSER           ║
-╠══════════════════════════════════════════════╣
-║  1. Current week scores                     ║
-║  2. Highest and lowest per player           ║
-║  3. Players with total points > 500         ║
-║  4. Compare two players' averages           ║
-║  5. Team analysis up to a chosen week       ║
-║  0. Quit                                    ║
-╚══════════════════════════════════════════════╝
-```
+- Confirm that `src/data/data.txt` exists and follows the required format.
+- Ensure the application is started from the project root so relative file paths resolve correctly.
 
 ## Author
-**Campbell Swan**
-> Coursework project for programming3
-> :).
+
+**Campbell Swan**  
+BSc (Hons) Software Development Student  
+Glasgow Caledonian University
