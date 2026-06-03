@@ -13,7 +13,7 @@ object App {
   // Stores one player's name and weekly scores
   final case class PlayerRecord(name: String, weeklyScores: Vector[Int])
 
-  // Stores all loaded player data in a immutable name-to-record based map
+  // Stores all loaded player data in an immutable name-to-record based map
   final case class PlayerDatabase(players: Map[String, PlayerRecord]) {
     def isEmpty: Boolean = players.isEmpty
     def size: Int = players.size
@@ -46,7 +46,6 @@ object App {
    * Attempts to load dataset directly out of a PostgreSQL database instance
    */
   private def loadDataFromPostgres(): Try[PlayerDatabase] = Try {
-    // Docker containerized network routing properties
     val url = "jdbc:postgresql://postgres-db:5432/fantasy_db"
     val username = "postgres"
     val password = "mysecretpassword"
@@ -60,9 +59,9 @@ object App {
         .takeWhile(identity)
         .map { _ =>
           val name = resultSet.getString("name")
-          // Retrieve the raw SQL array and safely cast it into a boxed Integer array
-          val arrayObj = resultSet.getArray("weekly_scores").getArray.asInstanceOf[Array[java.lang.Integer]]
-          val scores = arrayObj.map(_.toInt).toVector
+          // FIX: Cast directly to Array[Int], which is how sql.Array handles integer types natively
+          val arrayObj = resultSet.getArray("weekly_scores").getArray.asInstanceOf[Array[Int]]
+          val scores = arrayObj.toVector
           PlayerRecord(name, scores)
         }.toVector
 
@@ -99,15 +98,13 @@ object App {
 
   /**
    * Computes historical cumulative running totals using stack-safe operations.
-   * Compiles down via TCO into a flat iterative loop executing in constant O(1) stack space,
-   * shielding the data layer from StackOverflowErrors over large historical sequence sets.
    */
   def computeCumulativeScores(scores: Vector[Int]): Vector[Int] = {
     @annotation.tailrec
     def process(remaining: List[Int], currentSum: Int, acc: Vector[Int]): Vector[Int] = {
       remaining match {
         case Nil          => acc
-        case head :: tail => 
+        case head :: tail =>
           val newSum = currentSum + head
           process(tail, newSum, acc :+ newSum)
       }
@@ -117,13 +114,8 @@ object App {
 
   // --- CV OPTIMIZATION 2: FUZZY LOGIC RESOLUTION ALGORITHM ---
 
-  // Standardization for flexible name character matching
   def normaliseName(name: String): String = name.toLowerCase.replace("_", "").replace(" ", "")
 
-  /**
-   * Dynamic programming calculation of the Levenshtein Distance matrix metric.
-   * Maps single-character edit costs to evaluate structural string proximity.
-   */
   def calculateLevenshteinDistance(s1: String, s2: String): Int = {
     val memo = Array.tabulate(s1.length + 1, s2.length + 1) { (i, j) =>
       if (i == 0) j else if (j == 0) i else 0
@@ -135,10 +127,6 @@ object App {
     memo(s1.length)(s2.length)
   }
 
-  /**
-   * Resilient input resolution engine leveraging proximity matching rules.
-   * Falls back to matrix distance evaluation if structural sub-containment matches fail.
-   */
   def findMatchingPlayers(input: String, db: PlayerDatabase): Vector[String] = {
     val target = normaliseName(input)
     if (target.isEmpty) Vector.empty
@@ -282,32 +270,6 @@ object App {
     }
   }
 
-  def handleChoice(choice: String, db: PlayerDatabase): Boolean = choice match {
-    case "1" => handleCurrentWeek(currentWeekScores)(db); true
-    case "2" => handleMinMax(minMaxScores)(db); true
-    case "3" => handleHighTotals(db => highTotalPlayers(db, 500))(db); true
-    case "4" => handleAverageCompare(db); true
-    case "5" => handleTeamAnalysis(db); true
-    case "6" => handleSelectedWeek(db); true
-    case "0" => false
-    case _   => println(s"\n  [!] '$choice' is not a valid option. Please enter 0-6"); true
-  }
-
-  def main(args: Array[String]): Unit = { if (!database.isEmpty) run(database) }
-
-  // Constant-space tail-recursive terminal interface execution loop
-  @annotation.tailrec
-  def run(db: PlayerDatabase): Unit = {
-    println("\n1. Current | 2. MinMax | 3. High Totals | 4. Compare | 5. Team | 6. Week | 0. Quit")
-    print("Choice: ")
-    val choice = Try(StdIn.readLine().trim).getOrElse("0")
-    if (handleChoice(choice, db)) run(db)
-  }
-}     }
-    }
-  }
-
-  // Main navigation logic
   def handleChoice(choice: String, db: PlayerDatabase): Boolean = choice match {
     case "1" => handleCurrentWeek(currentWeekScores)(db); true
     case "2" => handleMinMax(minMaxScores)(db); true
