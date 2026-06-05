@@ -94,10 +94,22 @@ object App {
     }
   }
 
+  // Pure Business Logic Calculations (Restored for Test Suite Compatibility)
+
+  def averageScore(scores: Vector[Int]): Double =
+    if (scores.isEmpty) 0.0 else scores.sum.toDouble / scores.length
+
+  def teamStats(names: List[String], week: Int, db: PlayerDatabase): TeamAnalysisResult = {
+    val found = names.filter(db.players.contains)
+    val missing = names.filterNot(db.players.contains)
+    val totals = found.map(n => n -> computeCumulativeScores(db.players(n).weeklyScores).lift(week - 1).getOrElse(0)).toMap
+    TeamAnalysisResult(totals, missing, totals.values.sum)
+  }
+
   // Functional String Layout Utilities
   
-  def padR(text: String): String = text.padTo(ColW, ' ')
-  def padL(text: String): String = (" " * (NumW - text.length.min(NumW))) + text.take(NumW)
+  def padR(text: String, width: Int = ColW): String = text.padTo(width, ' ')
+  def padL(text: String, width: Int = NumW): String = (" " * (width - text.length.min(width))) + text.take(width)
   def numFmt(n: Any): String = n match {
     case d: Double => padL(f"$d%.2f")
     case other     => padL(other.toString)
@@ -143,8 +155,8 @@ object App {
     banner("Compare Average Points For Two Players")
     val p1 = readPlayer("  Enter first player name : ", db)
     val p2 = readPlayer("  Enter second player name: ", db)
-    val avg1 = db.players(p1).weeklyScores.sum.toDouble / db.players(p1).weeklyScores.length
-    val avg2 = db.players(p2).weeklyScores.sum.toDouble / db.players(p2).weeklyScores.length
+    val avg1 = averageScore(db.players(p1).weeklyScores)
+    val avg2 = averageScore(db.players(p2).weeklyScores)
     println(s"\n  ${padR(p1)} avg = ${numFmt(avg1)}\n  ${padR(p2)} avg = ${numFmt(avg2)}")
     val (w, l) = if (avg1 >= avg2) (p1, p2) else (p2, p1)
     println(f"\n  $w leads $l by ${math.abs(avg1 - avg2)}%.2f points on average")
@@ -154,9 +166,7 @@ object App {
     banner("Team Analysis - Cumulative Points Up To A Chosen Week")
     val names = readPlayerNames(db)
     val week = readWeekNumber(db.maxWeeks)
-    val found = names.filter(db.players.contains)
-    val totals = found.map(n => n -> computeCumulativeScores(db.players(n).weeklyScores).lift(week - 1).getOrElse(0)).toMap
-    val result = TeamAnalysisResult(totals, names.filterNot(db.players.contains), totals.values.sum)
+    val result = teamStats(names, week, db)
 
     if (result.missingPlayers.nonEmpty) println(s"\n  [Danger] Players not found: ${result.missingPlayers.mkString(", ")}")
     if (result.perPlayerTotals.isEmpty) println("  No valid players found")
