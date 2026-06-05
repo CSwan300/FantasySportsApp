@@ -2,18 +2,10 @@ import java.sql.DriverManager
 import scala.io.{Source, StdIn}
 import scala.util.Try
 
-/**
- * Fantasy Sports Analyser & Calculation Engine (Production Grade)
- * Seamlessly integrates PostgreSQL container persistence with fully optimized, 
- * unmutated functional data transformations, tail-recursive calculation layers,
- * and dynamic programming fuzzy logic error resolution.
- */
 object App {
 
-  // Stores one player's name and weekly scores
   final case class PlayerRecord(name: String, weeklyScores: Vector[Int])
 
-  // Stores all loaded player data in an immutable name-to-record based map
   final case class PlayerDatabase(players: Map[String, PlayerRecord]) {
     def isEmpty: Boolean = players.isEmpty
     def size: Int = players.size
@@ -21,7 +13,6 @@ object App {
     def playerNames: Vector[String] = players.keys.toVector.sorted
   }
 
-  // Stores analysis results for a group of players
   final case class TeamAnalysisResult(
                                        perPlayerTotals: Map[String, Int],
                                        missingPlayers: List[String],
@@ -32,7 +23,6 @@ object App {
   private val ColW = 26
   private val NumW = 10
 
-  // Dual-source data loader wrapper with a resilient failover mechanism
   val database: PlayerDatabase = loadDataFromPostgres() match {
     case scala.util.Success(db) if !db.isEmpty =>
       println("\n[Info] Successfully connected and loaded data from PostgreSQL database.")
@@ -42,9 +32,6 @@ object App {
       loadData(dataPath)
   }
 
-  /**
-   * Attempts to load dataset directly out of a PostgreSQL database instance
-   */
   private def loadDataFromPostgres(): Try[PlayerDatabase] = Try {
     val url = "jdbc:postgresql://postgres-db:5432/fantasy_db"
     val username = "postgres"
@@ -59,9 +46,8 @@ object App {
         .takeWhile(identity)
         .map { _ =>
           val name = resultSet.getString("name")
-          // FIX: Cast directly to Array[Int], which is how sql.Array handles integer types natively
-          val arrayObj = resultSet.getArray("weekly_scores").getArray.asInstanceOf[Array[Int]]
-          val scores = arrayObj.toVector
+          val arrayObj = resultSet.getArray("weekly_scores").getArray.asInstanceOf[Array[Object]]
+          val scores = arrayObj.map(_.asInstanceOf[java.lang.Integer].toInt).toVector
           PlayerRecord(name, scores)
         }.toVector
 
@@ -71,7 +57,6 @@ object App {
     }
   }
 
-  // Converts a CSV line into a PlayerRecord if it contains exactly 20 scores
   def parseLine(line: String): Option[PlayerRecord] = {
     val parts = line.split(",").toList.map(_.trim)
     parts match {
@@ -83,7 +68,6 @@ object App {
     }
   }
 
-  // Reads the data file and builds the player database (Fallback schema mechanism)
   def loadData(path: String): PlayerDatabase =
     Try(Source.fromFile(path)).toOption.map { source =>
       try {
@@ -94,11 +78,6 @@ object App {
       }
     }.getOrElse(PlayerDatabase(Map.empty))
 
-  // --- CV OPTIMIZATION 1: TAIL-RECURSIVE MEMORY MANAGE ENGINE ---
-
-  /**
-   * Computes historical cumulative running totals using stack-safe operations.
-   */
   def computeCumulativeScores(scores: Vector[Int]): Vector[Int] = {
     @annotation.tailrec
     def process(remaining: List[Int], currentSum: Int, acc: Vector[Int]): Vector[Int] = {
@@ -111,8 +90,6 @@ object App {
     }
     process(scores.toList, 0, Vector.empty)
   }
-
-  // --- CV OPTIMIZATION 2: FUZZY LOGIC RESOLUTION ALGORITHM ---
 
   def normaliseName(name: String): String = name.toLowerCase.replace("_", "").replace(" ", "")
 
@@ -137,8 +114,6 @@ object App {
     }
   }
 
-  // --- Core Functional Transformations ---
-
   def currentWeekScores(db: PlayerDatabase): Map[String, Int] =
     db.players.view.mapValues(_.weeklyScores.last).toMap
 
@@ -161,8 +136,6 @@ object App {
     TeamAnalysisResult(totals, missing, totals.values.sum)
   }
 
-  // --- UI and Terminal Formatting Helpers ---
-
   def padR(text: String, width: Int = ColW): String = text.padTo(width, ' ')
   def padL(text: String, width: Int = NumW): String =
     (" " * (width - text.length.min(width))) + text.take(width)
@@ -174,8 +147,6 @@ object App {
     val line = "-" * (ColW + NumW * 2 + 4)
     println(s"\n$line\n  $title\n$line")
   }
-
-  // --- Interactive Menu Operation Routing Handlers ---
 
   def handleCurrentWeek(backend: PlayerDatabase => Map[String, Int])(db: PlayerDatabase): Unit = {
     banner("Current Week Scores")
