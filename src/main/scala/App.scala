@@ -214,4 +214,39 @@ object App {
     }
   }
 
-  // Parses comma separated names and resolves them to database
+  // Parses comma separated names and resolves them to database entries
+  def readPlayerNames(db: PlayerDatabase): List[String] = {
+    println("  Enter player names separated by commas:")
+    print("  > ")
+    StdIn.readLine().split(",").toList.map(_.trim).filter(_.nonEmpty).flatMap { raw =>
+      findMatchingPlayers(raw, db) match {
+        case Vector()  => println(s"  [Danger] No match for '$raw' -ignored"); None
+        case Vector(s) => println(s"  Selected: $s"); Some(s)
+        case many      => println(s"  [Danger] '$raw' matches multiple players"); None
+      }
+    }
+  }
+
+  // Main navigation logic
+  def handleChoice(choice: String, db: PlayerDatabase): Boolean = choice match {
+    case "1" => handleCurrentWeek(currentWeekScores)(db); true
+    case "2" => handleMinMax(minMaxScores)(db); true
+    case "3" => handleHighTotals(db => highTotalPlayers(db, 500))(db); true
+    case "4" => handleAverageCompare(db); true
+    case "5" => handleTeamAnalysis(db); true
+    case "6" => handleSelectedWeek(db); true
+    case "0" => false
+    case _   => println(s"\n  [!] '$choice' is not a valid option. Please enter 0-6"); true
+  }
+
+  def main(args: Array[String]): Unit = { if (!database.isEmpty) run(database) }
+  
+  // verify if it is tail recursive and prevents a stack overflow error (LLMs replaced it anyway im not sad at all)
+  @annotation.tailrec
+  def run(db: PlayerDatabase): Unit = {
+    println("\n1. Current | 2. MinMax | 3. High Totals | 4. Compare | 5. Team | 6. Week | 0. Quit")
+    print("Choice: ")
+    val choice = Try(StdIn.readLine().trim).getOrElse("0")
+    if (handleChoice(choice, db)) run(db)
+  }
+}
